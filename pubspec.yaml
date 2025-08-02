@@ -1,0 +1,13 @@
+name: dartcc
+description: Advanced Dart compiler
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  path: ^1.9.1
+
+dev_dependencies:
+  test: ^1.24.0
