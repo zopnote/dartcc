@@ -92,8 +92,10 @@ List<Step> processSteps = [
         env.vars["DEPOT_TOOLS_WIN_TOOLCHAIN"] = 0;
       }
     },
-    condition: (env) =>
-        !Directory(path.join(env.workDirectoryPath, "sdk")).existsSync(),
+    condition: (env) {
+      env.vars["were_fetched"] = !Directory(path.join(env.workDirectoryPath, "sdk")).existsSync();
+      return env.vars["were_fetched"];
+    },
     command: (env) => StepCommand(
       program: path.join(env.vars["depot_tools_path"], "fetch"),
       arguments: ["dart"],
@@ -115,9 +117,7 @@ List<Step> processSteps = [
         "gclient" + (env.host.platform == Platform.windows ? ".bat" : ""),
       );
     },
-    condition: (env) => !File(
-      path.join(env.workDirectoryPath, ".gclient_previous_sync_commits"),
-    ).existsSync(),
+    condition: (env) => env.vars["were_fetched"],
     command: (env) => StepCommand(
       program: env.vars["gclient_script_file"],
       arguments: ["sync"],
@@ -190,7 +190,7 @@ List<Step> processSteps = [
         "product",
         "--arch",
         env.vars["dart_architectures"],
-        "create_cc_all",
+        "create_cc_sdk",
       ],
       workingDirectoryPath: env.vars["dart_sdk_path"],
     ),
