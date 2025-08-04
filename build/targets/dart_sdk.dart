@@ -101,7 +101,7 @@ List<Step> processSteps = [
       arguments: ["dart"],
       administrator: env.host.platform == Platform.windows,
     ),
-    spinner: true,
+    spinner: false,
   ),
 
   /**
