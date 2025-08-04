@@ -26,6 +26,8 @@ List<Step> processSteps = [
     "Ensures required programs in environment",
     run: (env) => env.ensurePrograms(["python", "git", "dart"]),
   ),
+
+
   /**
    * The chromium toolchain has to be cloned first.
    */
@@ -51,6 +53,8 @@ List<Step> processSteps = [
     ),
     exitFail: false,
   ),
+
+
   /*
    * Changes the repository to the forked/modified one.
    */
@@ -79,6 +83,8 @@ List<Step> processSteps = [
       return success;
     },
   ),
+
+
   /**
    * The Dart SDK depend on the chromium toolchain and has to be fetched
    * with the depot_tools fetch tool. We set DEPOT_TOOLS_WIN_TOOLCHAIN,
