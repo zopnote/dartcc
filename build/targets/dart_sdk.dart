@@ -119,6 +119,7 @@ List<Step> processSteps = [
     configure: (env) {
       env.vars["dart_sdk_path"] = path.join(env.workDirectoryPath, "sdk");
       env.vars["gclient_script_file"] = path.join(
+        env.host.platform != Platform.windows ? "./" : "",
         env.vars["depot_tools_path"],
         "gclient" + (env.host.platform == Platform.windows ? ".bat" : ""),
       );
@@ -128,7 +129,7 @@ List<Step> processSteps = [
       program: env.vars["gclient_script_file"],
       arguments: ["sync"],
       workingDirectoryPath: env.vars["dart_sdk_path"],
-      administrator: true,
+      administrator: env.host.platform == Platform.windows,
     ),
     spinner: true,
   ),
@@ -142,9 +143,7 @@ List<Step> processSteps = [
       program: "dart",
       arguments: ["pub", "get"],
       workingDirectoryPath: env.vars["dart_sdk_path"],
-      administrator: true,
     ),
-    spinner: true,
   ),
 
   /*
