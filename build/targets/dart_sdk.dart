@@ -27,7 +27,6 @@ List<Step> processSteps = [
     run: (env) => env.ensurePrograms(["python", "git", "dart"]),
   ),
 
-
   /**
    * The chromium toolchain has to be cloned first.
    */
@@ -53,7 +52,6 @@ List<Step> processSteps = [
     ),
     exitFail: false,
   ),
-
 
   /*
    * Changes the repository to the forked/modified one.
@@ -84,7 +82,6 @@ List<Step> processSteps = [
     },
   ),
 
-
   /**
    * The Dart SDK depend on the chromium toolchain and has to be fetched
    * with the depot_tools fetch tool. We set DEPOT_TOOLS_WIN_TOOLCHAIN,
@@ -94,19 +91,46 @@ List<Step> processSteps = [
   Step(
     "Fetch the dart sdk",
     configure: (env) {
-      if (env.host.platform == Platform.windows) {
+      if (env.system.platform == Platform.windows) {
         env.vars["DEPOT_TOOLS_WIN_TOOLCHAIN"] = 0;
       }
     },
     condition: (env) {
-      env.vars["were_fetched"] = !Directory(path.join(env.workDirectoryPath, "sdk")).existsSync();
+      env.vars["were_fetched"] = !Directory(
+        path.join(env.workDirectoryPath, "sdk"),
+      ).existsSync();
       return env.vars["were_fetched"];
     },
     command: (env) => StepCommand(
       program: path.join(env.vars["depot_tools_path"], "fetch"),
       arguments: ["dart"],
-      administrator: env.host.platform == Platform.windows,
+      administrator: env.system.platform == Platform.windows,
     ),
+    spinner: false,
+  ),
+
+  Step(
+    "Add android dependencies to .gclient",
+    configure: (env) {
+      env.vars["dart_sdk_path"] = path.join(env.workDirectoryPath, "sdk");
+    },
+    condition: (env) =>
+        env.vars["were_fetched"] && env.system.platform == Platform.linux,
+    run: (env) {
+      final File gclientFile = File(
+        path.join(env.vars["dart_sdk_path"], "../.gclient"),
+      );
+      final RandomAccessFile gclientFileOpened = gclientFile.openSync(
+        mode: FileMode.append,
+      );
+      gclientFileOpened.setPositionSync(gclientFileOpened.lengthSync());
+      gclientFileOpened.writeStringSync("""
+      "custom_vars": {
+        "download_android_deps": True,
+      },
+      """);
+      return true;
+    },
     spinner: false,
   ),
 
@@ -117,11 +141,10 @@ List<Step> processSteps = [
   Step(
     "Synchronize gclient dependencies",
     configure: (env) {
-      env.vars["dart_sdk_path"] = path.join(env.workDirectoryPath, "sdk");
       env.vars["gclient_script_file"] = path.join(
-        env.host.platform != Platform.windows ? "./" : "",
+        env.system.platform != Platform.windows ? "./" : "",
         env.vars["depot_tools_path"],
-        "gclient" + (env.host.platform == Platform.windows ? ".bat" : ""),
+        "gclient" + (env.system.platform == Platform.windows ? ".bat" : ""),
       );
     },
     condition: (env) => env.vars["were_fetched"],
@@ -129,7 +152,7 @@ List<Step> processSteps = [
       program: env.vars["gclient_script_file"],
       arguments: ["sync"],
       workingDirectoryPath: env.vars["dart_sdk_path"],
-      administrator: env.host.platform == Platform.windows,
+      administrator: env.system.platform == Platform.windows,
     ),
     spinner: true,
   ),
@@ -148,21 +171,19 @@ List<Step> processSteps = [
 
   /*
    * The cloned repository is a modified version of the dart-sdk, that builds the
-   * supported cross compilers and dartaotruntimes for the platforms.
+   * supported cross compilers and dartaotruntime for the platforms.
    */
   Step(
     "Build the required Dart SDK binaries",
     configure: (env) {
-      if (env.target.platform == Platform.linux) {
-        env.vars["dart_architectures"] = "x64,arm64,riscv64";
-      } else if (env.target.platform == Platform.windows) {
-        env.vars["dart_architectures"] = "x64,arm64";
-      } else if (env.target.platform == Platform.macos) {
+      if (env.system.platform == Platform.macos) {
         env.vars["dart_architectures"] = "arm64";
+      } else {
+        env.vars["dart_architectures"] = "x64,arm64";
       }
       env.vars["dart_binaries_paths"] =
           (env.vars["dart_architectures"] as String).split(",").map((e) {
-            if (env.target.platform == Platform.macos) {
+            if (env.system.platform == Platform.macos) {
               return path.join(
                 env.vars["dart_sdk_path"],
                 "xcodebuild",
@@ -176,7 +197,8 @@ List<Step> processSteps = [
             );
           });
 
-      env.vars["dart_dependency_python"] = env.host.platform == Platform.windows
+      env.vars["dart_dependency_python"] =
+          env.system.platform == Platform.windows
           ? path.join(env.vars["depot_tools_path"], "python3.bat")
           : "python";
     },
@@ -196,6 +218,30 @@ List<Step> processSteps = [
         "--arch",
         env.vars["dart_architectures"],
         "create_cc_sdk",
+      ],
+      workingDirectoryPath: env.vars["dart_sdk_path"],
+    ),
+  ),
+
+  Step(
+    "Build Dart Android aotruntime binary",
+    configure: (env) {
+      env.vars["dart_android_path"] =  path.join(
+        env.vars["dart_sdk_path"],
+        "out",
+        "ProductAndroidARM64",
+      );
+    },
+    condition: (env) => !Directory(env.vars["dart_android_path"]).existsSync(),
+    command: (env) => StepCommand(
+      program: env.vars["dart_dependency_python"],
+      arguments: [
+        "${env.vars["dart_sdk_path"]}/tools/build.py",
+        "--mode",
+        "product",
+        "--arch",
+        "arm64",
+        "create_cc_aotruntime",
       ],
       workingDirectoryPath: env.vars["dart_sdk_path"],
     ),

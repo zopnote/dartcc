@@ -212,7 +212,7 @@ enum Config {
 }
 
 /**
- * Represents a build configuration with information of the environment, the file system as well as host and targets.
+ * Represents a build configuration with information of the environment, the file system as well as system and targets.
  *
  * Manages the build life cycle with [Step].
  */
@@ -243,15 +243,9 @@ class Environment {
   final List<String> _installPath;
 
   /**
-   * The target system of this build configuration.
-   * If not set, it will be automatically set to [System.current()].
-   */
-  late final System target;
-
-  /**
    * The current Platform, determined by the Dart VM.
    */
-  final System host = System.current();
+  final System system = System.current();
 
   /**
    * Bare output directory of the project binaries.
@@ -274,7 +268,7 @@ class Environment {
 
   String get installDirectoryPath => path.joinAll(
     [outputDirectoryPath] +
-        [this.target.string(), this.config.name] +
+        [this.system.string(), this.config.name] +
         this._installPath,
   );
 
@@ -282,7 +276,7 @@ class Environment {
    * Temporal directory for files.
    */
   String get workDirectoryPath =>
-      path.join(outputDirectoryPath, this.target.string(), this.name);
+      path.join(outputDirectoryPath, this.system.string(), this.name);
 
   /**
    * Directory of the script run in this isolate.
@@ -299,7 +293,6 @@ class Environment {
     this.prefixSpace = 0,
     final Map<String, dynamic>? vars,
   }) : _installPath = installPath,
-       this.target = target ?? System.current(),
        this.vars = vars != null ? ({}..addAll(vars)) : {};
 
   Map<String, dynamic> toJson() {
@@ -370,8 +363,7 @@ class Environment {
           format(
             convert.jsonEncode({
               "name": this.name,
-              "host": this.host.string(),
-              "target": this.target.string(),
+              "system": this.system.string(),
               "build_type": this.config.name,
               "work_directory": this.workDirectoryPath,
               "output_directory": this.outputDirectoryPath,
